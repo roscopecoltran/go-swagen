@@ -1,0 +1,42 @@
+import * as cs from './constant';
+import * as schema from './schema';
+import { CALL_API } from './constant';
+
+
+export function createActionTypes(type) {
+  return {
+    get DEFAULT() { return cs[`${type}`] },
+    get REQUEST() { return cs[`${type}_REQUEST`] },
+    get SUCCESS() { return cs[`${type}_SUCCESS`] },
+    get FAIL() { return cs[`${type}_FAIL]`] },
+  }
+}
+
+{{ range $key, $value := . }}
+export const {{ $key }}ActionTypes = {
+  {{ range $value }}
+  {{ .Name }}: createActionTypes(cs.{{ .Type }}),
+  {{ end }}
+};
+{{ end }}
+
+{{ range $key, $value := . }}
+export const {{ $key }} = {
+  {{ range $value }}
+  {{ .Name }}({ {{ range .Parameters }}
+    {{ .Name }},{{ end }}
+  }, meta) {
+    return {
+      [CALL_API]: {
+        endpoint: `{{ .Endpoint }}`,
+        method: '{{ .Method }}',
+        types: [cs.{{ .Type }}_REQUEST, cs.{{ .Type }}_SUCCESS, cs.{{ .Type }}_FAIL],
+        meta: meta,
+        schema: schema.{{ .SchemaName }}
+      },
+    };
+  },
+  {{ end }}
+};
+{{ end }}
+

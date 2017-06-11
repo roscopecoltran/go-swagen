@@ -1,0 +1,10 @@
+export const CALL_API = 'CALL_API';
+
+{{ range $key, $value := . }}
+  {{ range $value }}
+  export const {{ .Type }} = '{{ .Type }}';
+  export const {{ .Type }}_REQUEST = '{{ .Type }}_REQUEST';
+  export const {{ .Type }}_SUCCESS = '{{ .Type }}_SUCCESS';
+  export const {{ .Type }}_FAIL = '{{ .Type }}_FAIL';
+  {{ end }}
+{{ end }}

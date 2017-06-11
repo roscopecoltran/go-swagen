@@ -1,0 +1,8 @@
+import { schema } from 'normalizr';
+
+
+{{ range . }}
+export const {{ .Name }} = new schema.{{ .Class }}('{{ .Name }}', { {{ range $key, $value := .Deps }}
+  {{ $key }},{{ end }}
+}, { idAttribute: 'uri' });
+{{ end }}
