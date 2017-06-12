@@ -1,9 +1,10 @@
+import * as api from './api';
 import * as cs from './constant';
 import * as schema from './schema';
 import { CALL_API } from './constant';
 
 
-export function createActionTypes(type) {
+function createActionTypes(type) {
   return {
     get DEFAULT() { return cs[`${type}`] },
     get REQUEST() { return cs[`${type}_REQUEST`] },
@@ -28,8 +29,9 @@ export const {{ $key }} = {
   }, meta) {
     return {
       [CALL_API]: {
-        endpoint: `{{ .Endpoint }}`,
-        method: '{{ .Method }}',
+        endpoint: api.{{ $key }}.{{ .Name }}({ {{ range .Parameters }}
+          {{ .Name }},{{ end }}
+        }),
         types: [cs.{{ .Type }}_REQUEST, cs.{{ .Type }}_SUCCESS, cs.{{ .Type }}_FAIL],
         meta: meta,
         schema: schema.{{ .SchemaName }}

@@ -8,6 +8,8 @@ import (
 	"path"
 	"runtime"
 
+	"strings"
+
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
 	"github.com/xreception/go-swagen/factory"
@@ -87,7 +89,7 @@ func (gen *generator) ParseFile(in string, out string) error {
 }
 
 func (gen *generator) writeTo(folder string) error {
-	m := map[string]interface{}{"action": gen.actions, "constant": gen.actions, "schema": gen.schemas}
+	m := map[string]interface{}{"action": gen.actions, "api": gen.actions, "constant": gen.actions, "schema": gen.schemas}
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
 		return errors.New("could not open default swagger.json file")
@@ -134,15 +136,16 @@ func (gen *generator) parseOperation(endpoint string, method string, op *spec.Op
 		schemaName := getSchemaName(resp.Schema)
 		gen.parseSchema(resp.Schema, schemaName)
 		a := &Action{
-			Name:       op.ID,
+			Name:       utils.CamelCase(op.ID),
 			Type:       utils.SnakeCase(op.Tags[0] + op.ID),
 			Method:     method,
-			Endpoint:   endpoint,
+			Endpoint:   replaceWithDollar(endpoint),
 			SchemaName: schemaName,
 			Parameters: op.Parameters,
 		}
 
 		for _, s := range op.Tags {
+			s = utils.CamelCase(s)
 			as, ok := gen.actions[s]
 			if !ok {
 				as = make([]*Action, 0)
@@ -206,4 +209,8 @@ func getSchemaName(s *spec.Schema) string {
 
 func isArrayOfSchema(s *spec.Schema) bool {
 	return s.Items != nil && s.Items.Schema != nil && s.Items.Schema.Ref.HasFragmentOnly
+}
+
+func replaceWithDollar(s string) string {
+	return strings.Replace(s, "{", "${", -1)
 }

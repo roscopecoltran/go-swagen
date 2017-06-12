@@ -1,0 +1,56 @@
+import qs from 'qs';
+
+
+export const interceptors = {
+  beforeFecth(request) {
+    return request
+  },
+
+  fetch: fetch,
+
+  onFetch(request) {
+    return this.fetch(request).then(response =>
+      response.json().then(json => {
+        if(!response.ok) {
+          return Promise.reject(json);
+        }
+
+        return json;
+      })
+    );
+  },
+
+  onSuccess(data) {
+    return data
+  }
+}
+
+function fetchAPI(url, options) {
+  if (options.body) {
+    options.body = JSON.stringify(options.body);
+  }
+  const request = interceptors.beforeFecth(new Request(url, options))
+  return interceptors.onFetch(request).then(interceptors.onSuccess)
+}
+
+{{ range $key, $value := . }}
+export const {{ $key }} = {
+  {{ range $value }}
+  {{ .Name }}({ {{ range .Parameters }}
+    {{ .Name }},{{ end }}
+  }) {
+    const query:any = {};
+    const options:any = {};
+  {{ range .Parameters }}{{ if .Required }}
+    if (!{{ .Name }}) {
+      throw new Error('{{ .Name }} is required');
+    }{{ end }}{{ if eq .In "query" }}
+    query.{{ .Name }} = {{ .Name }}{{ else if eq .In "body" }}
+    options.body = {{ .Name }}{{ end }}{{ end }}
+    const QueryString = qs.stringify(query, { skipNulls: true });
+    return fetchAPI(`{{ .Endpoint }}${QueryString ? '?'+QueryString : ''}`, options)
+  },
+  {{ end }}
+};
+{{ end }}
+
