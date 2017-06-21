@@ -1,6 +1,7 @@
+import { schema } from 'normalizr';
 import * as api from './api';
 import * as cs from './constant';
-import * as schema from './schema';
+import * as sc from './schema';
 import { CALL_API } from './constant';
 
 
@@ -25,16 +26,18 @@ export const {{ $key }}ActionTypes = {
 export const {{ $key }} = {
   {{ range $value }}
   {{ .Name }}({ {{ range .Parameters }}
-    {{ .Name }},{{ end }}
+    {{ .Name | CamelCase }},{{ end }}
+  }:{ {{ range .Parameters }}
+    {{ .Name | CamelCase }}{{ with .Required }}{{ else }}?{{ end }}: {{ with .Schema }}api.{{ end }}{{ .Type }},{{ end }}
   }, meta) {
     return {
       [CALL_API]: {
         endpoint: api.{{ $key }}.{{ .Name }}({ {{ range .Parameters }}
-          {{ .Name }},{{ end }}
+          {{ .Name | CamelCase }},{{ end }}
         }),
         types: [cs.{{ .Type }}_REQUEST, cs.{{ .Type }}_SUCCESS, cs.{{ .Type }}_FAIL],
         meta: meta,
-        schema: schema.{{ .SchemaName }}
+        {{ if .RespSchema }}schema: sc.{{ .RespSchema }},{{ end }}
       },
     };
   },

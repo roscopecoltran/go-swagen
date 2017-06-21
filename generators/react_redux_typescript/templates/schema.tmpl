@@ -1,8 +1,11 @@
 import { schema } from 'normalizr';
 
 
-{{ range . }}
-export const {{ .Name }} = new schema.{{ .Class }}('{{ .Name }}', { {{ range $key, $value := .Deps }}
-  {{ $key }},{{ end }}
-}, { idAttribute: 'uri' });
-{{ end }}
+{{ range . }}{{ if .Normalizable }}{{ if eq .Class "Object" }}
+export const {{ .Name }} = new schema.Object({ {{ range $key, $value := .Deps }}
+  {{ $key | CamelCase }}: {{ $value }},{{ end }}
+});{{ else if eq .Class "Entity" }}
+export const {{ .Name }} = new schema.Entity('{{ .Name }}', { {{ range $key, $value := .Deps }}
+  {{ $key | CamelCase }}: {{ $value }},{{ end }}
+}, { idAttribute: 'uri' });{{ end }}
+{{ end }}{{ end }}

@@ -1,52 +1,80 @@
-import qs from 'qs';
+import * as qs from 'qs';
+import humps from 'humps';
 
+{{ range .Schemas }}{{ if .Enum }}
+export enum {{ .Name | InterfaceCase }} { {{ range .Enum }}
+  {{ . }} = '{{ . }}',{{ end }}
+}{{ else }}
+export interface {{ .Name | InterfaceCase }} { {{ range $key, $value := .Props }}
+  {{ $key | CamelCase }}: {{ $value }},{{ end }}
+}{{ end }}
+{{ end }}
 
 export const interceptors = {
-  beforeFecth(request) {
+  beforeFecth(request: Request) {
     return request
   },
 
+  baseUrl: '',
+
   fetch: fetch,
 
-  onFetch(request) {
-    return this.fetch(request).then(response =>
+  camelCase(object) {
+    return humps.camelizeKeys(object);
+  },
+
+  deCamelCase(object) {
+    return humps.decamelizeKeys(object);
+  },
+
+  onFetch(request: Request) {
+    const myFetch = this.fetch.bind(null);
+    return myFetch(request).then(response =>
       response.json().then(json => {
-        if(!response.ok) {
-          return Promise.reject(json);
+        const data = this.camelCase(json);
+        if (!response.ok) {
+          return Promise.reject(data);
         }
 
-        return json;
+        return data;
       })
     );
   },
 
-  onSuccess(data) {
+  onSuccess(data: { [key: string]: any }) {
     return data
   }
 }
 
 function fetchAPI(url, options) {
-  if (options.body) {
-    options.body = JSON.stringify(options.body);
-  }
-  const request = interceptors.beforeFecth(new Request(url, options))
+  const endpoint = interceptors.baseUrl + url;
+  const opts = Object.assign(options, {
+      body: JSON.stringify(options.body),
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+  });
+  const request = interceptors.beforeFecth(new Request(endpoint, opts))
   return interceptors.onFetch(request).then(interceptors.onSuccess)
 }
 
-{{ range $key, $value := . }}
+{{ range $key, $value := .Actions }}
 export const {{ $key }} = {
   {{ range $value }}
   {{ .Name }}({ {{ range .Parameters }}
-    {{ .Name }},{{ end }}
+    {{ .Name | CamelCase }},{{ end }}
+  }:{ {{ range .Parameters }}
+    {{ .Name | CamelCase }}{{ with .Required }}{{ else }}?{{ end }}: {{ .Type }},{{ end }}
   }) {
-    const query:any = {};
-    const options:any = {};
+    const query: { [key: string]: any } = {};
+    const options: { [key: string]: any } = {};
   {{ range .Parameters }}{{ if .Required }}
-    if (!{{ .Name }}) {
-      throw new Error('{{ .Name }} is required');
+    if (!{{ .Name | CamelCase }}) {
+      throw new Error('{{ .Name | CamelCase }} is required');
     }{{ end }}{{ if eq .In "query" }}
-    query.{{ .Name }} = {{ .Name }}{{ else if eq .In "body" }}
-    options.body = {{ .Name }}{{ end }}{{ end }}
+    query.{{ .Name }} = {{ .Name | CamelCase }}{{ else if eq .In "body" }}
+    options.body = {{ .Name | CamelCase }}{{ end }}{{ end }}
     const QueryString = qs.stringify(query, { skipNulls: true });
     return fetchAPI(`{{ .Endpoint }}${QueryString ? '?'+QueryString : ''}`, options)
   },

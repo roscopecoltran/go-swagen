@@ -6,9 +6,8 @@ import (
 	"html/template"
 	"os"
 	"path"
+	"regexp"
 	"runtime"
-
-	"strings"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
@@ -28,26 +27,29 @@ type theFactory struct{}
 
 func (f *theFactory) Create(parameters map[string]interface{}) (factory.IGenerator, error) {
 	return &generator{
-		actions:   make(map[string][]*Action),
-		hasSchema: make(map[string]bool),
+		Actions:   make(map[string][]*Action),
+		hasSchema: make(map[string]*Schema),
 	}, nil
 }
 
 // generator implements factory.IGenerator
 type generator struct {
 	factory.IGenerator
-	swagger *spec.Swagger
-	schemas []*Schema
-	actions map[string][]*Action
+	swagger   *spec.Swagger
+	hasSchema map[string]*Schema
 
-	hasSchema map[string]bool
+	Actions map[string][]*Action
+	Schemas []*Schema
 }
 
 // Schema the normalizr Schema structure
 type Schema struct {
-	Name  string
-	Class string
-	Deps  map[string]bool
+	Name         string
+	Class        string
+	Deps         map[string]string
+	Normalizable bool
+	Props        map[string]string
+	Enum         []interface{}
 }
 
 // Action the readux Action
@@ -56,7 +58,7 @@ type Action struct {
 	Type       string
 	Method     string
 	Endpoint   string
-	SchemaName string
+	RespSchema string
 	Parameters []spec.Parameter
 }
 
@@ -66,7 +68,7 @@ func (gen *generator) Parse(swagger *spec.Swagger, out string) error {
 
 	paths := gen.swagger.Paths
 	if paths == nil || paths.Paths == nil || len(paths.Paths) == 0 {
-		return errors.New("this swagger has no paths")
+		return errors.New("this swagger has no path")
 	}
 
 	for endpoint, item := range paths.Paths {
@@ -89,17 +91,32 @@ func (gen *generator) ParseFile(in string, out string) error {
 }
 
 func (gen *generator) writeTo(folder string) error {
-	m := map[string]interface{}{"action": gen.actions, "api": gen.actions, "constant": gen.actions, "schema": gen.schemas}
+	// locate template folder
 	_, filename, _, ok := runtime.Caller(1)
 	if !ok {
-		return errors.New("could not open default swagger.json file")
+		return errors.New("could not get runtime file name")
 	}
 	dir := path.Dir(filename)
+	tmplDir := path.Join(dir, fmt.Sprintf("./templates"))
 
+	// prepare templates
+	funcMap := template.FuncMap{
+		"CamelCase":     utils.CamelCase,
+		"InterfaceCase": utils.InterfaceCase,
+	}
+	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob(tmplDir + "/*.tmpl"))
+
+	// i/o writer
+	m := map[string]interface{}{"action": gen.Actions, "api": gen, "constant": gen.Actions, "schema": gen.Schemas}
 	for k, v := range m {
-		file := fmt.Sprintf("%s/%s.ts", folder, k)
-		tmpl := path.Join(dir, fmt.Sprintf("./templates/%s.tmpl", k))
-		err := writeFile(file, tmpl, v)
+		filePath := fmt.Sprintf("%s/%s.ts", folder, k)
+		file, err := os.Create(filePath)
+		defer file.Close()
+		if err != nil {
+			return err
+		}
+
+		err = tmpl.ExecuteTemplate(file, k+".tmpl", v)
 		if err != nil {
 			return err
 		}
@@ -107,23 +124,14 @@ func (gen *generator) writeTo(folder string) error {
 	return nil
 }
 
-func writeFile(filePath string, tmplPath string, data interface{}) error {
-	file, err := os.Create(filePath)
-	defer file.Close()
-	if err != nil {
-		return err
-	}
-
-	tmpl := template.Must(template.ParseFiles(tmplPath)).Funcs(template.FuncMap{
-		"CamelCase": utils.CamelCase,
-	})
-	return tmpl.Execute(file, data)
-}
-
 // parseOperation parse the operation of swagger.
 func (gen *generator) parseOperation(endpoint string, method string, op *spec.Operation) {
 	if op == nil {
 		return
+	}
+
+	for i := range op.Parameters {
+		gen.parseParam(&op.Parameters[i])
 	}
 
 	if op.Responses == nil || op.Responses.StatusCodeResponses == nil {
@@ -134,33 +142,51 @@ func (gen *generator) parseOperation(endpoint string, method string, op *spec.Op
 	if resp, ok := op.Responses.StatusCodeResponses[200]; ok {
 		// TODO(junhua): suppose every response is a ref schema
 		schemaName := getSchemaName(resp.Schema)
-		gen.parseSchema(resp.Schema, schemaName)
+		schema := gen.parseSchema(resp.Schema, schemaName)
 		a := &Action{
 			Name:       utils.CamelCase(op.ID),
-			Type:       utils.SnakeCase(op.Tags[0] + op.ID),
+			Type:       utils.UpperSnakeCase(op.Tags[0] + op.ID),
 			Method:     method,
 			Endpoint:   replaceWithDollar(endpoint),
-			SchemaName: schemaName,
 			Parameters: op.Parameters,
+		}
+
+		if schema != nil && schema.Normalizable {
+			a.RespSchema = schema.Name
 		}
 
 		for _, s := range op.Tags {
 			s = utils.CamelCase(s)
-			as, ok := gen.actions[s]
+			as, ok := gen.Actions[s]
 			if !ok {
 				as = make([]*Action, 0)
 			}
 
 			as = append(as, a)
-			gen.actions[s] = as
+			gen.Actions[s] = as
 		}
 	}
 }
 
+// parseParam parse the parameters of operation
+func (gen *generator) parseParam(param *spec.Parameter) {
+	if param.Schema != nil {
+		name := getSchemaName(param.Schema)
+		gen.parseSchema(param.Schema, name)
+		param.Type = utils.InterfaceCase(name)
+	} else if param.Type == "integer" {
+		param.Type = "number"
+	}
+}
+
 // parseSchema parse the schema.
-func (gen *generator) parseSchema(s *spec.Schema, name string) {
-	if s == nil || gen.hasSchema[name] || len(name) == 0 {
-		return
+func (gen *generator) parseSchema(s *spec.Schema, name string) *Schema {
+	if s == nil || len(name) == 0 {
+		return nil
+	}
+
+	if existed, ok := gen.hasSchema[name]; ok {
+		return existed
 	}
 
 	if s.Ref.HasFragmentOnly {
@@ -169,42 +195,72 @@ func (gen *generator) parseSchema(s *spec.Schema, name string) {
 			fmt.Println(err) // TODO(junhua) 这里的错误可以安全吞掉
 		}
 		if data == nil {
-			return
+			return nil
 		}
 
 		nextSchema := data.(spec.Schema)
-		gen.parseSchema(&nextSchema, name)
-		return
+		return gen.parseSchema(&nextSchema, name)
 	}
 
 	schema := &Schema{
-		Name: name,
-		Deps: make(map[string]bool),
+		Name:         name,
+		Deps:         make(map[string]string),
+		Props:        make(map[string]string),
+		Class:        "Object",
+		Normalizable: false,
+		Enum:         s.Enum,
 	}
-	schema.Class = "Object"
 	for k, v := range s.Properties {
+		schema.Props[k] = getSchemaType(&v)
+
 		if k == entityID {
 			schema.Class = "Entity"
-		}
-		if v.Ref.HasFragmentOnly {
+			schema.Normalizable = true
+		} else if v.Ref.HasFragmentOnly {
 			refName := getSchemaName(&v)
-			gen.parseSchema(&v, refName)
-			schema.Deps[refName] = true
-		}
-		if isArrayOfSchema(&v) {
+			schema.Props[k] = utils.InterfaceCase(refName)
+			next := gen.parseSchema(&v, refName)
+			if next.Normalizable {
+				schema.Deps[k] = refName
+				schema.Normalizable = true
+			}
+		} else if isArrayOfSchema(&v) {
 			refName := getSchemaName(v.Items.Schema)
-			gen.parseSchema(v.Items.Schema, refName)
-			schema.Deps[refName] = true
+			schema.Props[k] = utils.InterfaceCase(refName) + "[]"
+			next := gen.parseSchema(v.Items.Schema, refName)
+			if next.Normalizable {
+				schema.Deps[k] = "[" + refName + "]"
+				schema.Normalizable = true
+			}
 		}
 	}
-	gen.schemas = append(gen.schemas, schema)
-	gen.hasSchema[name] = true
+
+	gen.Schemas = append(gen.Schemas, schema)
+	gen.hasSchema[name] = schema
+	return schema
 }
 
 func getSchemaName(s *spec.Schema) string {
 	pr := s.Ref.GetPointer()
 	tokens := pr.DecodedTokens()
-	return utils.CamelCase(tokens[len(tokens)-1] + "Schema")
+	return utils.CamelCase(tokens[len(tokens)-1])
+}
+
+func getSchemaType(schema *spec.Schema) string {
+	if len(schema.Type) == 0 {
+		return ""
+	}
+
+	t := schema.Type[0]
+	a := ""
+	if t == "array" && len(schema.Items.Schema.Type) > 0 {
+		t = schema.Items.Schema.Type[0]
+		a = "[]"
+	}
+	if t == "integer" {
+		t = "number"
+	}
+	return t + a
 }
 
 func isArrayOfSchema(s *spec.Schema) bool {
@@ -212,5 +268,10 @@ func isArrayOfSchema(s *spec.Schema) bool {
 }
 
 func replaceWithDollar(s string) string {
-	return strings.Replace(s, "{", "${", -1)
+	re := regexp.MustCompile(`{[a-z0-9A-Z_-]+}`)
+	return re.ReplaceAllStringFunc(s, func(matched string) string {
+		n := len(matched)
+		w := matched[1 : n-1]
+		return "${" + utils.CamelCase(w) + "}"
+	})
 }
