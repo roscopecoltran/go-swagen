@@ -46,7 +46,7 @@ export const interceptors = {
   }
 }
 
-function fetchAPI(url, options) {
+export function fetchAPI(url, options) {
   const endpoint = interceptors.baseUrl + url;
   const opts = Object.assign(options, {
       body: JSON.stringify(options.body),
