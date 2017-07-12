@@ -23,7 +23,7 @@ export function myFetch(endpoint, options) {
   const opts = Object.assign({}, options, {body, headers});
   return fetch(new Request(endpoint, opts)).then(response =>
     response.json().then(json => {
-      const data = humps.camelCase(json);
+      const data = humps.camelizeKeys(json);
       if (!response.ok) {
         return Promise.reject(data);
       }
