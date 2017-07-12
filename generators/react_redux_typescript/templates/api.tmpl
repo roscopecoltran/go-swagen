@@ -11,52 +11,31 @@ export interface {{ .Name | InterfaceCase }} { {{ range $key, $value := .Props }
 {{ end }}
 
 export const config = {
-  beforeFecth(request: Request) {
-    return request
-  },
-
   baseUrl: '',
+}
 
-  fetch: fetch,
+export function myFetch(endpoint, options) {
+  const headers = Object.assign({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  }, options.headers);
+  const body = options.body ? humps.decamelizeKeys(JSON.stringify(options.body)) : null;
+  const opts = Object.assign({}, options, {body, headers});
+  return fetch(new Request(endpoint, opts)).then(response =>
+    response.json().then(json => {
+      const data = humps.camelCase(json);
+      if (!response.ok) {
+        return Promise.reject(data);
+      }
 
-  camelCase(object) {
-    return humps.camelizeKeys(object);
-  },
-
-  deCamelCase(object) {
-    return humps.decamelizeKeys(object);
-  },
-
-  onFetch(request: Request) {
-    const myFetch = this.fetch.bind(null);
-    return myFetch(request).then(response =>
-      response.json().then(json => {
-        const data = this.camelCase(json);
-        if (!response.ok) {
-          return Promise.reject(data);
-        }
-
-        return data;
-      })
-    );
-  },
-
-  onSuccess(data: { [key: string]: any }) {
-    return data
-  }
+      return data;
+    })
+  );
 }
 
 export function fetchAPI(url, options) {
   const endpoint = config.baseUrl + url;
-  const opts = Object.assign(options, {
-      body: JSON.stringify(options.body),
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-  });
-  const request = config.beforeFecth(new Request(endpoint, opts))
-  return config.onFetch(request).then(config.onSuccess)
+  return myFetch(endpoint, options);
 }
 
 {{ range $key, $value := .Actions }}
