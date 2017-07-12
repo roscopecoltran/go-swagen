@@ -1,5 +1,5 @@
 import * as qs from 'qs';
-import * as hump from 'humps';
+import * as humps from 'humps';
 
 {{ range .Schemas }}{{ if .Enum }}
 export enum {{ .Name | InterfaceCase }} { {{ range .Enum }}
