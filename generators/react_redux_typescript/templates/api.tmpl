@@ -1,5 +1,5 @@
 import * as qs from 'qs';
-import humps from 'humps';
+import * as hump from 'humps';
 
 {{ range .Schemas }}{{ if .Enum }}
 export enum {{ .Name | InterfaceCase }} { {{ range .Enum }}
@@ -10,7 +10,7 @@ export interface {{ .Name | InterfaceCase }} { {{ range $key, $value := .Props }
 }{{ end }}
 {{ end }}
 
-export const interceptors = {
+export const config = {
   beforeFecth(request: Request) {
     return request
   },
@@ -47,7 +47,7 @@ export const interceptors = {
 }
 
 export function fetchAPI(url, options) {
-  const endpoint = interceptors.baseUrl + url;
+  const endpoint = config.baseUrl + url;
   const opts = Object.assign(options, {
       body: JSON.stringify(options.body),
       headers: {
@@ -55,8 +55,8 @@ export function fetchAPI(url, options) {
         'Content-Type': 'application/json',
       },
   });
-  const request = interceptors.beforeFecth(new Request(endpoint, opts))
-  return interceptors.onFetch(request).then(interceptors.onSuccess)
+  const request = config.beforeFecth(new Request(endpoint, opts))
+  return config.onFetch(request).then(config.onSuccess)
 }
 
 {{ range $key, $value := .Actions }}
