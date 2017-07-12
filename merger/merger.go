@@ -18,9 +18,11 @@ type IMarshaler interface {
 }
 
 type merger struct {
-	swagger       *spec.Swagger
-	compressLevel int
-	revertDefs    map[string]string
+	primary    *spec.Swagger
+	defs       spec.Definitions
+	paths      map[string]spec.PathItem
+	revertDefs map[string]string
+	replaceMap map[string]string
 }
 
 // Merge multiple swaggers to one swagger
@@ -45,24 +47,21 @@ func Merge(swaggers []*spec.Swagger, scopes []string, primary *spec.Swagger, com
 	}
 
 	m := &merger{
-		swagger:       primary,
-		compressLevel: compressLevel,
-		revertDefs:    make(map[string]string),
+		primary:    primary,
+		defs:       make(map[string]spec.Schema),
+		paths:      make(map[string]spec.PathItem),
+		revertDefs: make(map[string]string),
+		replaceMap: make(map[string]string),
 	}
 
 	for i := 0; i < len(swaggers); i++ {
-		err = m.Add(scopes[i], swaggers[i])
+		err = m.Add(swaggers[i], scopes[i])
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	err = m.Compress(compressLevel)
-	if err != nil {
-		return nil, err
-	}
-
-	return m.swagger, nil
+	return m.Swagger(compressLevel)
 }
 
 func defaultSwagger() (*spec.Swagger, error) {
@@ -80,62 +79,13 @@ func defaultSwagger() (*spec.Swagger, error) {
 	return swagger, nil
 }
 
-func (m *merger) Add(scope string, swagger *spec.Swagger) error {
-	// if len(scope) == 0 {
-	// 	return errors.New("Must have a scope for swagger to be merged")
-	// }
-
-	err := m.Normalizr(scope, swagger)
+func (m *merger) Add(swagger *spec.Swagger, scope string) error {
+	err := m.AddPaths(swagger.Paths)
 	if err != nil {
 		return err
 	}
 
-	err = m.AddPaths(swagger.Paths)
-	if err != nil {
-		return err
-	}
-
-	err = m.AddDefinitions(swagger.Definitions)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *merger) Normalizr(scope string, swagger *spec.Swagger) error {
-	// Put scope in paths' definition ref
-	from := "#/definitions/"
-	to := "#/definitions/" + scope
-	err := replace(swagger, map[string]string{from: to})
-	if err != nil {
-		return err
-	}
-
-	// definitions
-	replaceMap := make(map[string]string)
-	defs := make(map[string]spec.Schema)
-	hash := md5.New()
-
-	for k, schema := range swagger.Definitions {
-		key := scope + k
-		data, err := schema.MarshalJSON()
-		if err != nil {
-			return err
-		}
-		checksum := hash.Sum(data)
-		uuid := string(checksum)
-		if exist, ok := m.revertDefs[uuid]; ok {
-			replaceMap[key] = exist
-		} else {
-			m.revertDefs[uuid] = key
-			defs[key] = schema
-		}
-	}
-
-	swagger.Definitions = defs
-
-	err = replace(swagger, replaceMap)
+	err = m.AddDefinitions(swagger.Definitions, scope)
 	if err != nil {
 		return err
 	}
@@ -144,32 +94,64 @@ func (m *merger) Normalizr(scope string, swagger *spec.Swagger) error {
 }
 
 func (m *merger) AddPaths(paths *spec.Paths) error {
-
 	for k, v := range paths.Paths {
-		m.swagger.Paths.Paths[k] = v
+		m.paths[k] = v
 	}
 
 	return nil
 }
 
-func (m *merger) AddDefinitions(defs spec.Definitions) error {
-	for k, v := range defs {
-		m.swagger.Definitions[k] = v
+func (m *merger) AddDefinitions(defs spec.Definitions, scope string) error {
+	for key, schema := range defs {
+		uuid, err := toMD5(schema)
+		if err != nil {
+			return err
+		}
+		if exist, ok := m.revertDefs[uuid]; ok {
+			m.replaceMap[key] = exist
+		} else {
+			scopedKey := scope + key
+			m.revertDefs[uuid] = scopedKey
+			m.defs[scopedKey] = schema
+			m.replaceMap[key] = scopedKey
+		}
 	}
 
 	return nil
 }
 
-func (m *merger) Compress(level int) error {
+func (m *merger) Swagger(level int) (*spec.Swagger, error) {
 	d := &Dict{}
-	for k := range m.swagger.Definitions {
+	for k := range m.defs {
 		d.insertStr(k)
 	}
 	for i := 0; i < level; i++ {
 		d.compress()
 	}
-	replaceMap := d.getOrigToShortMap()
-	return replace(m.swagger, replaceMap)
+	shortMap := d.getOrigToShortMap()
+
+	m.primary.Definitions = make(map[string]spec.Schema)
+	m.primary.Paths.Paths = make(map[string]spec.PathItem)
+
+	for k, v := range m.defs {
+		if short, ok := shortMap[k]; ok {
+			k = short
+		}
+		m.primary.Definitions[k] = v
+	}
+	for k, v := range m.paths {
+		m.primary.Paths.Paths[k] = v
+	}
+	err := replace(m.primary, m.replaceMap)
+	if err != nil {
+		return nil, err
+	}
+	err = replace(m.primary, shortMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.primary, nil
 }
 
 // replace content string
@@ -180,7 +162,7 @@ func replace(content IMarshaler, replaceMap map[string]string) error {
 	}
 
 	for from, to := range replaceMap {
-		data = bytes.Replace(data, []byte(from), []byte(to), -1)
+		data = bytes.Replace(data, []byte("#/definitions/"+from), []byte("#/definitions/"+to), -1)
 	}
 	err = content.UnmarshalJSON(data)
 	if err != nil {
@@ -188,4 +170,15 @@ func replace(content IMarshaler, replaceMap map[string]string) error {
 	}
 
 	return nil
+}
+
+func toMD5(schema spec.Schema) (string, error) {
+	hash := md5.New()
+	data, err := schema.MarshalJSON()
+	if err != nil {
+		return "", err
+	}
+	hash.Write(data)
+	checksum := hash.Sum(nil)
+	return string(checksum), nil
 }

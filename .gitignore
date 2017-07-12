@@ -90,3 +90,5 @@ vendor/
 bazel-*
 
 build
+
+*.bak

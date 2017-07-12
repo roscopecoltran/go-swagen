@@ -25,20 +25,16 @@ export const {{ $key }}ActionTypes = {
 {{ range $key, $value := . }}
 export const {{ $key }} = {
   {{ range $value }}
-  {{ .Name }}({ {{ range .Parameters }}
-    {{ .Name | CamelCase }},{{ end }}
-  }:{ {{ range .Parameters }}
+  {{ .Name }}(params:{ {{ range .Parameters }}
     {{ .Name | CamelCase }}{{ with .Required }}{{ else }}?{{ end }}: {{ with .Schema }}api.{{ end }}{{ .Type }},{{ end }}
   }, meta) {
     return {
       [CALL_API]: {
-        endpoint: api.{{ $key }}.{{ .Name }}({ {{ range .Parameters }}
-          {{ .Name | CamelCase }},{{ end }}
-        }),
+        endpoint: api.{{ $key }}.{{ .Name }}(params),
         types: [cs.{{ .Type }}_REQUEST, cs.{{ .Type }}_SUCCESS, cs.{{ .Type }}_FAIL],
-        meta: meta,
         {{ if .RespSchema }}schema: sc.{{ .RespSchema }},{{ end }}
       },
+      meta: Object.assign({}, meta, { params }),
     };
   },
   {{ end }}
