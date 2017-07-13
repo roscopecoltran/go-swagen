@@ -2,10 +2,10 @@ import { schema } from 'normalizr';
 
 
 {{ range . }}{{ if .Normalizable }}{{ if eq .Class "Object" }}
-export const {{ .Name }} = new schema.Object({ {{ range $key, $value := .Deps }}
+export const {{ .Name | CamelCase }} = new schema.Object({ {{ range $key, $value := .Deps }}
   {{ $key | CamelCase }}: {{ $value }},{{ end }}
 });{{ else if eq .Class "Entity" }}
-export const {{ .Name }} = new schema.Entity('{{ .Name }}', { {{ range $key, $value := .Deps }}
+export const {{ .Name | CamelCase }} = new schema.Entity('{{ .Name | CamelCase }}', { {{ range $key, $value := .Deps }}
   {{ $key | CamelCase }}: {{ $value }},{{ end }}
 }, { idAttribute: 'uri' });{{ end }}
 {{ end }}{{ end }}

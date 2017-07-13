@@ -45,7 +45,7 @@ export const {{ $key }} = {
     {{ .Name | CamelCase }},{{ end }}
   }:{ {{ range .Parameters }}
     {{ .Name | CamelCase }}{{ with .Required }}{{ else }}?{{ end }}: {{ .Type }},{{ end }}
-  }) {
+  }){{ with .RespSchema }}:Promise<{{ .Name | InterfaceCase }}>{{ end }} {
     const query: { [key: string]: any } = {};
     const options: { [key: string]: any } = {};
   {{ range .Parameters }}{{ if .Required }}

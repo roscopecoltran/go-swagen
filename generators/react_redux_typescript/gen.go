@@ -3,11 +3,11 @@ package reactReduxTypescript
 import (
 	"errors"
 	"fmt"
-	"html/template"
 	"os"
 	"path"
 	"regexp"
 	"runtime"
+	"text/template"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
@@ -58,7 +58,7 @@ type Action struct {
 	Type       string
 	Method     string
 	Endpoint   string
-	RespSchema string
+	RespSchema *Schema
 	Parameters []spec.Parameter
 }
 
@@ -151,8 +151,8 @@ func (gen *generator) parseOperation(endpoint string, method string, op *spec.Op
 			Parameters: op.Parameters,
 		}
 
-		if schema != nil && schema.Normalizable {
-			a.RespSchema = schema.Name
+		if schema != nil {
+			a.RespSchema = schema
 		}
 
 		for _, s := range op.Tags {
@@ -221,7 +221,7 @@ func (gen *generator) parseSchema(s *spec.Schema, name string) *Schema {
 			schema.Props[k] = utils.InterfaceCase(refName)
 			next := gen.parseSchema(&v, refName)
 			if next.Normalizable {
-				schema.Deps[k] = refName
+				schema.Deps[k] = utils.CamelCase(refName)
 				schema.Normalizable = true
 			}
 		} else if isArrayOfSchema(&v) {
@@ -229,7 +229,7 @@ func (gen *generator) parseSchema(s *spec.Schema, name string) *Schema {
 			schema.Props[k] = utils.InterfaceCase(refName) + "[]"
 			next := gen.parseSchema(v.Items.Schema, refName)
 			if next.Normalizable {
-				schema.Deps[k] = "[" + refName + "]"
+				schema.Deps[k] = "[" + utils.CamelCase(refName) + "]"
 				schema.Normalizable = true
 			}
 		}
@@ -243,7 +243,7 @@ func (gen *generator) parseSchema(s *spec.Schema, name string) *Schema {
 func getSchemaName(s *spec.Schema) string {
 	pr := s.Ref.GetPointer()
 	tokens := pr.DecodedTokens()
-	return utils.CamelCase(tokens[len(tokens)-1])
+	return tokens[len(tokens)-1]
 }
 
 func getSchemaType(schema *spec.Schema) string {

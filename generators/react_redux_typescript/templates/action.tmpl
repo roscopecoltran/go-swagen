@@ -32,7 +32,7 @@ export const {{ $key }} = {
       [CALL_API]: {
         endpoint: api.{{ $key }}.{{ .Name }}(params),
         types: [cs.{{ .Type }}_REQUEST, cs.{{ .Type }}_SUCCESS, cs.{{ .Type }}_FAIL],
-        {{ if .RespSchema }}schema: sc.{{ .RespSchema }},{{ end }}
+        {{ with .RespSchema }}{{ if .Normalizable }}schema: sc.{{ .Name | CamelCase }},{{ end }}{{ end }}
       },
       meta: Object.assign({}, meta, { params }),
     };

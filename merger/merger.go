@@ -162,7 +162,7 @@ func replace(content IMarshaler, replaceMap map[string]string) error {
 	}
 
 	for from, to := range replaceMap {
-		data = bytes.Replace(data, []byte("#/definitions/"+from), []byte("#/definitions/"+to), -1)
+		data = bytes.Replace(data, []byte("#/definitions/"+from+"\""), []byte("#/definitions/"+to+"\""), -1)
 	}
 	err = content.UnmarshalJSON(data)
 	if err != nil {
