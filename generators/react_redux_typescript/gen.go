@@ -103,6 +103,7 @@ func (gen *generator) writeTo(folder string) error {
 	funcMap := template.FuncMap{
 		"CamelCase":     utils.CamelCase,
 		"InterfaceCase": utils.InterfaceCase,
+		"PluralCase":    utils.PluralCase,
 	}
 	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob(tmplDir + "/*.tmpl"))
 

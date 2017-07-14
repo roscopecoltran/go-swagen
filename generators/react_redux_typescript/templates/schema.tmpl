@@ -5,7 +5,7 @@ import { schema } from 'normalizr';
 export const {{ .Name | CamelCase }} = new schema.Object({ {{ range $key, $value := .Deps }}
   {{ $key | CamelCase }}: {{ $value }},{{ end }}
 });{{ else if eq .Class "Entity" }}
-export const {{ .Name | CamelCase }} = new schema.Entity('{{ .Name | CamelCase }}', { {{ range $key, $value := .Deps }}
+export const {{ .Name | CamelCase }} = new schema.Entity('{{ .Name | CamelCase | PluralCase }}', { {{ range $key, $value := .Deps }}
   {{ $key | CamelCase }}: {{ $value }},{{ end }}
 }, { idAttribute: 'uri' });{{ end }}
 {{ end }}{{ end }}

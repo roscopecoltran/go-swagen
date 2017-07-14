@@ -5,6 +5,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/jinzhu/inflection"
 )
 
 // Split split strings by word
@@ -46,6 +48,11 @@ func UpperSnakeCase(s string) string {
 func InterfaceCase(s string) string {
 	ss := Split(s)
 	return "I" + strings.Join(ss, "")
+}
+
+// PluralCase return the plural of a word
+func PluralCase(word string) string {
+	return inflection.Plural(word)
 }
 
 // Split splits the camelcase word and returns a list of words. It also
