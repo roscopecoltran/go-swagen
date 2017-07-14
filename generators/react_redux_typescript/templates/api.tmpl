@@ -19,8 +19,8 @@ export function myFetch(endpoint, options) {
     Accept: 'application/json',
     'Content-Type': 'application/json',
   }, options.headers);
-  const body = options.body ? humps.decamelizeKeys(JSON.stringify(options.body)) : null;
-  const opts = Object.assign({}, options, {body, headers});
+  const body = options.body ? humps.decamelizeKeys(JSON.stringify(options.body)) : undefined;
+  const opts = Object.assign({}, options, { body, headers });
   return fetch(new Request(endpoint, opts)).then(response =>
     response.json().then(json => {
       const data = humps.camelizeKeys(json);
@@ -47,8 +47,8 @@ export const {{ $key }} = {
     {{ .Name | CamelCase }}{{ with .Required }}{{ else }}?{{ end }}: {{ .Type }},{{ end }}
   }){{ with .RespSchema }}:Promise<{{ .Name | InterfaceCase }}>{{ end }} {
     const query: { [key: string]: any } = {};
-    const options: { [key: string]: any } = {};
-  {{ range .Parameters }}{{ if .Required }}
+    const options: { [key: string]: any } = { method: "{{ .Method }}" };
+    {{ range .Parameters }}{{ if .Required }}
     if (!{{ .Name | CamelCase }}) {
       throw new Error('{{ .Name | CamelCase }} is required');
     }{{ end }}{{ if eq .In "query" }}
