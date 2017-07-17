@@ -75,6 +75,7 @@ func (gen *generator) Parse(swagger *spec.Swagger, out string) error {
 		gen.parseOperation(endpoint, "GET", item.Get)
 		gen.parseOperation(endpoint, "PUT", item.Put)
 		gen.parseOperation(endpoint, "POST", item.Post)
+		gen.parseOperation(endpoint, "DELETE", item.Delete)
 	}
 
 	return gen.writeTo(out)
