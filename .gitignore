@@ -92,3 +92,5 @@ bazel-*
 build
 
 *.bak
+
+dist
