@@ -1,17 +1,12 @@
 # Build customization
 builds:
   - main: cmd/swagen.go
-    binary: drum-roll
+    binary: swagen
     goos:
       - windows
       - darwin
       - linux
     goarch:
       - amd64
-# Archive customization
 archive:
   format: tar.gz
-  replacements:
-    amd64: 64-bit
-    darwin: macOS
-    linux: Tux
