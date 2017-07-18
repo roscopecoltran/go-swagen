@@ -1,6 +1,6 @@
 # Build customization
 builds:
-  - main: main.go
+  - main: cmd/swagen.go
     binary: drum-roll
     goos:
       - windows
