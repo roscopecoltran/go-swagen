@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"crypto/md5"
 	"errors"
-	"path"
-	"runtime"
 
 	"github.com/go-openapi/spec"
-	"github.com/xreception/go-swagen/utils"
 )
 
 // IMarshaler interface
@@ -31,16 +28,11 @@ func Merge(swaggers []*spec.Swagger, scopes []string, primary *spec.Swagger, com
 	if len(swaggers) == 0 {
 		return primary, nil
 	}
-
 	if len(swaggers) != len(scopes) {
 		return nil, errors.New("Lenght of scopes and swaggers should be equal")
 	}
-
 	if primary == nil {
-		primary, err = defaultSwagger()
-		if err != nil {
-			return nil, err
-		}
+		primary = defaultSwagger()
 	}
 	if primary.Paths.Paths == nil {
 		primary.Paths.Paths = make(map[string]spec.PathItem)
@@ -64,19 +56,25 @@ func Merge(swaggers []*spec.Swagger, scopes []string, primary *spec.Swagger, com
 	return m.Swagger(compressLevel)
 }
 
-func defaultSwagger() (*spec.Swagger, error) {
-	_, filename, _, ok := runtime.Caller(1)
-	if !ok {
-		return nil, errors.New("could not open default swagger.json file")
+func defaultSwagger() *spec.Swagger {
+	return &spec.Swagger{
+		SwaggerProps: spec.SwaggerProps{
+			Swagger: "2.0",
+			Info: &spec.Info{
+				InfoProps: spec.InfoProps{
+					Title:   "Commerce API",
+					Version: "1.0",
+				},
+			},
+			Schemes:  []string{"http", "https"},
+			Consumes: []string{"application/json"},
+			Produces: []string{"application/json"},
+			Paths: &spec.Paths{
+				Paths: make(map[string]spec.PathItem),
+			},
+			Definitions: make(map[string]spec.Schema),
+		},
 	}
-
-	filepath := path.Join(path.Dir(filename), "./templates/swagger.json")
-	swagger, err := utils.LoadSpec(filepath)
-	if err != nil {
-		return nil, err
-	}
-
-	return swagger, nil
 }
 
 func (m *merger) Add(swagger *spec.Swagger, scope string) error {
