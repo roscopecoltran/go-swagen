@@ -2,9 +2,9 @@ package reactReduxTypescript
 
 import (
 	"fmt"
-	"html/template"
 	"log"
 	"strings"
+	"text/template"
 
 	"io"
 
