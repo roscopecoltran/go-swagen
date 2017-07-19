@@ -4,10 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path"
 	"regexp"
-	"runtime"
-	"text/template"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
@@ -92,33 +89,17 @@ func (gen *generator) ParseFile(in string, out string) error {
 }
 
 func (gen *generator) writeTo(folder string) error {
-	// locate template folder
-	_, filename, _, ok := runtime.Caller(1)
-	if !ok {
-		return errors.New("could not get runtime file name")
-	}
-	dir := path.Dir(filename)
-	tmplDir := path.Join(dir, fmt.Sprintf("./templates"))
-
-	// prepare templates
-	funcMap := template.FuncMap{
-		"CamelCase":     utils.CamelCase,
-		"InterfaceCase": utils.InterfaceCase,
-		"PluralCase":    utils.PluralCase,
-	}
-	tmpl := template.Must(template.New("").Funcs(funcMap).ParseGlob(tmplDir + "/*.tmpl"))
-
-	// i/o writer
 	m := map[string]interface{}{"action": gen.Actions, "api": gen, "constant": gen.Actions, "schema": gen.Schemas}
 	for k, v := range m {
 		filePath := fmt.Sprintf("%s/%s.ts", folder, k)
 		file, err := os.Create(filePath)
 		defer file.Close()
+
 		if err != nil {
 			return err
 		}
 
-		err = tmpl.ExecuteTemplate(file, k+".tmpl", v)
+		err = templates.ExecuteTemplate(file, k, v)
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path"
 
@@ -43,6 +44,8 @@ func (c *Merge) Execute(args []string) error {
 		}
 	}
 
+	fmt.Printf("# Starting with compress level %x ...\n", c.CompressLevel)
+
 	swaggers, scopes, err := utils.LoadSpecsWithScopes(c.Inputs)
 	if err != nil {
 		return err
@@ -55,6 +58,8 @@ func (c *Merge) Execute(args []string) error {
 	if err != nil {
 		return err
 	}
+
+	fmt.Println("# Merge Successfully!")
 
 	return nil
 }

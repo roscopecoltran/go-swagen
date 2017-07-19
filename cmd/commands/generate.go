@@ -5,6 +5,8 @@ import (
 
 	"os"
 
+	"fmt"
+
 	flags "github.com/jessevdk/go-flags"
 	"github.com/xreception/go-swagen/factory"
 	"github.com/xreception/go-swagen/utils"
@@ -34,13 +36,19 @@ func (c *Generate) Execute(args []string) error {
 		c.Lang = "react-redux-ts" // now we only support react-redux-ts lang
 		// return errors.New("Plz define the target language to generate specific client sdk, use -l")
 	}
+	if _, err := os.Stat(string(c.Input)); os.IsNotExist(err) {
+		return errors.New("input file does not exist")
+	}
 	if _, err := os.Stat(c.Output); os.IsNotExist(err) {
+		fmt.Println("# Creating output folder ...")
 		err := os.MkdirAll(c.Output, os.ModePerm)
 		if err != nil {
 			return err
 		}
+		fmt.Printf("# Folder %s is created.\n", c.Output)
 	}
 
+	fmt.Printf("# Generating %s code ...\n", c.Lang)
 	swagger, err := utils.LoadSpec(string(c.Input))
 	if err != nil {
 		return err
@@ -53,5 +61,8 @@ func (c *Generate) Execute(args []string) error {
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("# Generated Successfully!")
+
 	return nil
 }
