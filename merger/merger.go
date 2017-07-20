@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/go-openapi/spec"
+	"github.com/xreception/go-swagen/utils"
 )
 
 // IMarshaler interface
@@ -100,7 +101,8 @@ func (m *merger) AddPaths(paths *spec.Paths) error {
 }
 
 func (m *merger) AddDefinitions(defs spec.Definitions, scope string) error {
-	for key, schema := range defs {
+	for _, key := range utils.SortedStringKeys(defs) {
+		schema := defs[key]
 		uuid, err := toMD5(schema)
 		if err != nil {
 			return err
@@ -120,7 +122,7 @@ func (m *merger) AddDefinitions(defs spec.Definitions, scope string) error {
 
 func (m *merger) Swagger(level int) (*spec.Swagger, error) {
 	d := &Dict{}
-	for k := range m.defs {
+	for _, k := range utils.SortedStringKeys(m.defs) {
 		d.insertStr(k)
 	}
 	for i := 0; i < level; i++ {

@@ -1,11 +1,11 @@
 import * as qs from 'qs';
 import * as humps from 'humps';
 
-{{ range .Schemas }}{{ if .Enum }}
-export enum {{ .Name | InterfaceCase }} { {{ range .Enum }}
+{{ range $name, $schema := .Schemas }}{{ if $schema.Enum }}
+export enum {{ $schema.Name | InterfaceCase }} { {{ range $schema.Enum }}
   {{ . }} = '{{ . }}',{{ end }}
 }{{ else }}
-export interface {{ .Name | InterfaceCase }} { {{ range $key, $value := .Props }}
+export interface {{ $schema.Name | InterfaceCase }} { {{ range $key, $value := $schema.Props }}
   {{ $key | CamelCase }}: {{ $value }},{{ end }}
 }{{ end }}
 {{ end }}

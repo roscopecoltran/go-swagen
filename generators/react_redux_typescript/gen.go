@@ -24,19 +24,19 @@ type theFactory struct{}
 
 func (f *theFactory) Create(parameters map[string]interface{}) (factory.IGenerator, error) {
 	return &generator{
-		Actions:   make(map[string][]*Action),
-		hasSchema: make(map[string]*Schema),
+		Actions: make(map[string][]*Action),
+		Schemas: make(map[string]*Schema),
 	}, nil
 }
 
 // generator implements factory.IGenerator
 type generator struct {
 	factory.IGenerator
-	swagger   *spec.Swagger
-	hasSchema map[string]*Schema
+	swagger *spec.Swagger
 
-	Actions map[string][]*Action
-	Schemas []*Schema
+	Schemas      map[string]*Schema
+	SchemasArray []*Schema
+	Actions      map[string][]*Action
 }
 
 // Schema the normalizr Schema structure
@@ -68,7 +68,8 @@ func (gen *generator) Parse(swagger *spec.Swagger, out string) error {
 		return errors.New("this swagger has no path")
 	}
 
-	for endpoint, item := range paths.Paths {
+	for _, endpoint := range utils.SortedStringKeys(paths.Paths) {
+		item := paths.Paths[endpoint]
 		gen.parseOperation(endpoint, "GET", item.Get)
 		gen.parseOperation(endpoint, "PUT", item.Put)
 		gen.parseOperation(endpoint, "POST", item.Post)
@@ -89,7 +90,7 @@ func (gen *generator) ParseFile(in string, out string) error {
 }
 
 func (gen *generator) writeTo(folder string) error {
-	m := map[string]interface{}{"action": gen.Actions, "api": gen, "constant": gen.Actions, "schema": gen.Schemas}
+	m := map[string]interface{}{"action": gen.Actions, "api": gen, "constant": gen.Actions, "schema": gen.SchemasArray}
 	for k, v := range m {
 		filePath := fmt.Sprintf("%s/%s.ts", folder, k)
 		file, err := os.Create(filePath)
@@ -168,7 +169,7 @@ func (gen *generator) parseSchema(s *spec.Schema, name string) *Schema {
 		return nil
 	}
 
-	if existed, ok := gen.hasSchema[name]; ok {
+	if existed, ok := gen.Schemas[name]; ok {
 		return existed
 	}
 
@@ -218,8 +219,8 @@ func (gen *generator) parseSchema(s *spec.Schema, name string) *Schema {
 		}
 	}
 
-	gen.Schemas = append(gen.Schemas, schema)
-	gen.hasSchema[name] = schema
+	gen.SchemasArray = append(gen.SchemasArray, schema)
+	gen.Schemas[name] = schema
 	return schema
 }
 
