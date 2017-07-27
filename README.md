@@ -27,3 +27,9 @@ swagen generate ./build/gen/swagger.json -o ./build/gen
 ```
 curl -sL https://git.io/goreleaser | bash
 ```
+
+# go-bindata
+```
+# cd react_redux_typescript
+go-bindata templates/
+```
