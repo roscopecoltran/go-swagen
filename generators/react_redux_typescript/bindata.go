@@ -6,7 +6,7 @@
 // templates/schema.tmpl
 // DO NOT EDIT!
 
-package main
+package reactReduxTypescript
 
 import (
 	"bytes"
@@ -203,10 +203,10 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"templates/action.tmpl": templatesActionTmpl,
-	"templates/api.tmpl": templatesApiTmpl,
+	"templates/action.tmpl":   templatesActionTmpl,
+	"templates/api.tmpl":      templatesApiTmpl,
 	"templates/constant.tmpl": templatesConstantTmpl,
-	"templates/schema.tmpl": templatesSchemaTmpl,
+	"templates/schema.tmpl":   templatesSchemaTmpl,
 }
 
 // AssetDir returns the file names below a certain
@@ -248,12 +248,13 @@ type bintree struct {
 	Func     func() (*asset, error)
 	Children map[string]*bintree
 }
+
 var _bintree = &bintree{nil, map[string]*bintree{
 	"templates": &bintree{nil, map[string]*bintree{
-		"action.tmpl": &bintree{templatesActionTmpl, map[string]*bintree{}},
-		"api.tmpl": &bintree{templatesApiTmpl, map[string]*bintree{}},
+		"action.tmpl":   &bintree{templatesActionTmpl, map[string]*bintree{}},
+		"api.tmpl":      &bintree{templatesApiTmpl, map[string]*bintree{}},
 		"constant.tmpl": &bintree{templatesConstantTmpl, map[string]*bintree{}},
-		"schema.tmpl": &bintree{templatesSchemaTmpl, map[string]*bintree{}},
+		"schema.tmpl":   &bintree{templatesSchemaTmpl, map[string]*bintree{}},
 	}},
 }}
 
@@ -303,4 +304,3 @@ func _filePath(dir, name string) string {
 	cannonicalName := strings.Replace(name, "\\", "/", -1)
 	return filepath.Join(append([]string{dir}, strings.Split(cannonicalName, "/")...)...)
 }
-
