@@ -9,6 +9,7 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/xreception/go-swagen/cmd/commands"
 	_ "github.com/xreception/go-swagen/generators/react_redux_typescript"
+	_ "github.com/xreception/go-swagen/generators/typescript"
 )
 
 func init() {

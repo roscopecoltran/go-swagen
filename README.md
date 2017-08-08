@@ -33,3 +33,9 @@ curl -sL https://git.io/goreleaser | bash
 # cd react_redux_typescript
 go-bindata templates/
 ```
+
+# goreleaser
+```
+goreleaser --rm-dist
+VERSION=0.5.0 && git tag -a v${VERSION} -m "release v${VERSION}" && git push origin --follow-tags
+```

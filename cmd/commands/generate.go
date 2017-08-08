@@ -33,7 +33,7 @@ func (c *Generate) Execute(args []string) error {
 		c.Output = "./build/gen"
 	}
 	if len(c.Lang) == 0 {
-		c.Lang = "react-redux-ts" // now we only support react-redux-ts lang
+		c.Lang = "typescript"
 		// return errors.New("Plz define the target language to generate specific client sdk, use -l")
 	}
 	if _, err := os.Stat(string(c.Input)); os.IsNotExist(err) {

@@ -1,0 +1,8 @@
+{{ range .Schemas }}{{ if .Enum }}
+export enum {{ .ID | InterfaceCase }} { {{ range .Enum }}
+  {{ . }} = '{{ . }}',{{ end }}
+}{{ else }}
+export interface {{ .ID | InterfaceCase }} { {{ range $key, $value := .Properties }}
+  {{ $key | CamelCase }}: {{ $value | schemaRef | schemaType }},{{ end }}
+}{{ end }}
+{{ end }}
