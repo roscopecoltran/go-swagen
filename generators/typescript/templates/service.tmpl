@@ -3,13 +3,13 @@ import { IRequest } from './request';
 
 
 export default class {{ .Service }} {
-  request
+  request: IRequest
 
-  constructor(request) {
+  constructor(request: IRequest) {
     this.request = request;
   }
   {{ range .Operations }}
-  {{ .ID }}({ {{ range .Parameters }}
+  {{ .ID | CamelCase }}({ {{ range .Parameters }}
     {{ .Name | CamelCase }},{{ end }}
   }:{ {{ range .Parameters }}
     {{ .Name | CamelCase }}{{ with .Required }}{{ else }}?{{ end }}: {{ with .Schema }}schemas.{{ end }}{{ . | parameterType }},{{ end }}
