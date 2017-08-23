@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/md5"
 	"errors"
+	"fmt"
+	"log"
 
 	"github.com/go-openapi/spec"
 	"github.com/xreception/go-swagen/utils"
@@ -22,6 +24,9 @@ type merger struct {
 	revertDefs map[string]string
 	replaceMap map[string]string
 }
+
+var prefix = "#/definitions/"
+var suffix = "\""
 
 // Merge multiple swaggers to one swagger
 func Merge(swaggers []*spec.Swagger, scopes []string, primary *spec.Swagger, compressLevel int) (*spec.Swagger, error) {
@@ -79,45 +84,47 @@ func defaultSwagger() *spec.Swagger {
 }
 
 func (m *merger) Add(swagger *spec.Swagger, scope string) error {
-	err := m.AddPaths(swagger.Paths)
+	// + scope
+	defs := make(map[string]spec.Schema)
+	for k, v := range swagger.Definitions {
+		v.ID = scope + k
+		defs[scope+k] = v
+	}
+	swagger.Definitions = defs
+
+	err := replace(swagger, map[string]string{
+		prefix: prefix + scope,
+	}, "", "")
 	if err != nil {
 		return err
 	}
 
-	err = m.AddDefinitions(swagger.Definitions, scope)
-	if err != nil {
-		return err
-	}
+	// Add paths
+	m.AddPaths(swagger.Paths)
+
+	// Add defs
+	m.AddDefinitions(swagger)
 
 	return nil
 }
 
-func (m *merger) AddPaths(paths *spec.Paths) error {
+func (m *merger) AddPaths(paths *spec.Paths) {
 	for k, v := range paths.Paths {
 		m.paths[k] = v
 	}
-
-	return nil
 }
 
-func (m *merger) AddDefinitions(defs spec.Definitions, scope string) error {
-	for _, key := range utils.SortedStringKeys(defs) {
-		schema := defs[key]
-		uuid, err := toMD5(schema)
-		if err != nil {
-			return err
-		}
+func (m *merger) AddDefinitions(swagger *spec.Swagger) {
+	for _, key := range utils.SortedStringKeys(swagger.Definitions) {
+		schema := swagger.Definitions[key]
+		uuid := string(toMD5(&schema, swagger))
 		if exist, ok := m.revertDefs[uuid]; ok {
 			m.replaceMap[key] = exist
 		} else {
-			scopedKey := scope + key
-			m.revertDefs[uuid] = scopedKey
-			m.defs[scopedKey] = schema
-			m.replaceMap[key] = scopedKey
+			m.revertDefs[uuid] = key
+			m.defs[key] = schema
 		}
 	}
-
-	return nil
 }
 
 func (m *merger) Swagger(level int) (*spec.Swagger, error) {
@@ -142,11 +149,11 @@ func (m *merger) Swagger(level int) (*spec.Swagger, error) {
 	for k, v := range m.paths {
 		m.primary.Paths.Paths[k] = v
 	}
-	err := replace(m.primary, m.replaceMap)
+	err := replace(m.primary, m.replaceMap, prefix, suffix)
 	if err != nil {
 		return nil, err
 	}
-	err = replace(m.primary, shortMap)
+	err = replace(m.primary, shortMap, prefix, suffix)
 	if err != nil {
 		return nil, err
 	}
@@ -155,14 +162,15 @@ func (m *merger) Swagger(level int) (*spec.Swagger, error) {
 }
 
 // replace content string
-func replace(content IMarshaler, replaceMap map[string]string) error {
+func replace(content IMarshaler, replaceMap map[string]string, prefix string, suffix string) error {
 	data, err := content.MarshalJSON()
 	if err != nil {
 		return err
 	}
-
 	for from, to := range replaceMap {
-		data = bytes.Replace(data, []byte("#/definitions/"+from+"\""), []byte("#/definitions/"+to+"\""), -1)
+		from = prefix + from + suffix
+		to = prefix + to + suffix
+		data = bytes.Replace(data, []byte(from), []byte(to), -1)
 	}
 	err = content.UnmarshalJSON(data)
 	if err != nil {
@@ -172,13 +180,75 @@ func replace(content IMarshaler, replaceMap map[string]string) error {
 	return nil
 }
 
-func toMD5(schema spec.Schema) (string, error) {
+// func toMD5(schema spec.Schema) (string, error) {
+// 	hash := md5.New()
+// 	data, err := schema.MarshalJSON()
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	hash.Write(data)
+// 	checksum := hash.Sum(nil)
+// 	return string(checksum), nil
+// }
+
+func toMD5(schema *spec.Schema, document interface{}) []byte {
+	if schema == nil {
+		return nil
+	}
+
 	hash := md5.New()
+
+	if isRef(schema) {
+		ref, err := getRef(schema, document)
+		if err != nil {
+			fmt.Printf("get ref error of schema %v", schema.ID)
+			data, _ := schema.MarshalJSON()
+			fmt.Println(string(data))
+			log.Fatal(err)
+		}
+		return toMD5(ref, document)
+	}
+
+	if isArray(schema) {
+		return hash.Sum(toMD5(schema.Items.Schema, document))
+	}
+
+	if isObject(schema) {
+		hash.Write([]byte("object"))
+		for _, k := range utils.SortedStringKeys(schema.Properties) {
+			hash.Write([]byte(k))
+			child := schema.Properties[k]
+			hash.Write(toMD5(&child, document))
+		}
+		return hash.Sum(nil)
+	}
+
 	data, err := schema.MarshalJSON()
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 	hash.Write(data)
-	checksum := hash.Sum(nil)
-	return string(checksum), nil
+	return hash.Sum(nil)
+}
+
+func isArray(schema *spec.Schema) bool {
+	return utils.Contains(schema.Type, "array")
+}
+
+func isObject(schema *spec.Schema) bool {
+	return utils.Contains(schema.Type, "object")
+}
+
+func isRef(schema *spec.Schema) bool {
+	return schema.Ref.HasFragmentOnly
+}
+
+func getRef(schema *spec.Schema, document interface{}) (*spec.Schema, error) {
+	data, _, err := schema.Ref.GetPointer().Get(document)
+	if err != nil {
+		return nil, err
+	}
+
+	refSchema := data.(spec.Schema)
+	return &refSchema, nil
 }

@@ -8,10 +8,13 @@
 
 merge
 ```
-swagen merge -c 1 -p \
+go run cmd/swagen.go merge -c 1 -p \
   -i account@./build/account.swagger.json \
+  -i catalog@./build/catalog.swagger.json \
   -i file@./build/file.swagger.json \
   -i finance@./build/finance.swagger.json \
+  -i merchant@./build/merchant.swagger.json \
+  -i pingpp@./build/pingpp.swagger.json \
   -i retail@./build/retail.swagger.json \
   -i stock@./build/stock.swagger.json \
   -o ./build/gen/swagger.json
@@ -19,7 +22,7 @@ swagen merge -c 1 -p \
 
 generate
 ```
-swagen generate ./build/gen/swagger.json -o ./build/gen
+go run cmd/swagen.go generate ./build/gen/swagger.json -o ./build/gen
 ```
 
 

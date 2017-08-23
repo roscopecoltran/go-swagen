@@ -12,6 +12,10 @@ func parameterType(param *spec.Parameter) string {
 		return "number"
 	}
 
+	if param.Type == "array" {
+		return "Array<" + param.Items.Type + ">"
+	}
+
 	return param.Type
 }
 
