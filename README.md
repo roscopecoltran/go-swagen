@@ -25,6 +25,19 @@ generate
 go run cmd/swagen.go generate ./build/gen/swagger.json -o ./build/gen
 ```
 
+filter
+```
+// -i input
+// -t tags
+// -p pretty
+// -o output
+go run cmd/swagen.go filter \
+  -i ./build/swagger-input.json \
+  -o ./build/swagger.json \
+  -t "AccountNSService" \
+  -t "CatalogSystemService" \
+  -p
+```
 
 # get go releaser binary
 ```

@@ -38,6 +38,11 @@ Generate js or ts client from given swagger file.
 		log.Fatal(err)
 	}
 
+	_, err = parser.AddCommand("filter", "filter swagger", "filter paths and definitons with tags", &commands.Filter{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	if _, err := parser.Parse(); err != nil {
 		os.Exit(1)
 	}
