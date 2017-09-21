@@ -52,6 +52,6 @@ go-bindata templates/
 
 # goreleaser
 ```
+VERSION=0.6.0 && git tag -a v${VERSION} -m "release v${VERSION}" && git push origin --follow-tags
 goreleaser --rm-dist
-VERSION=0.5.0 && git tag -a v${VERSION} -m "release v${VERSION}" && git push origin --follow-tags
 ```
