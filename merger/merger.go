@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/md5"
 	"errors"
-	"fmt"
 	"log"
 
 	"github.com/go-openapi/spec"
@@ -198,22 +197,16 @@ func toMD5(schema *spec.Schema, document interface{}) []byte {
 
 	hash := md5.New()
 
-	if isRef(schema) {
-		ref, err := getRef(schema, document)
-		if err != nil {
-			fmt.Printf("get ref error of schema %v", schema.ID)
-			data, _ := schema.MarshalJSON()
-			fmt.Println(string(data))
-			log.Fatal(err)
-		}
+	if utils.IsRef(schema) {
+		ref := utils.GetRef(schema, document)
 		return toMD5(ref, document)
 	}
 
-	if isArray(schema) {
+	if utils.IsArray(schema) {
 		return hash.Sum(toMD5(schema.Items.Schema, document))
 	}
 
-	if isObject(schema) {
+	if utils.IsObject(schema) {
 		hash.Write([]byte("object"))
 		for _, k := range utils.SortedStringKeys(schema.Properties) {
 			hash.Write([]byte(k))
@@ -229,26 +222,4 @@ func toMD5(schema *spec.Schema, document interface{}) []byte {
 	}
 	hash.Write(data)
 	return hash.Sum(nil)
-}
-
-func isArray(schema *spec.Schema) bool {
-	return utils.Contains(schema.Type, "array")
-}
-
-func isObject(schema *spec.Schema) bool {
-	return utils.Contains(schema.Type, "object")
-}
-
-func isRef(schema *spec.Schema) bool {
-	return schema.Ref.HasFragmentOnly
-}
-
-func getRef(schema *spec.Schema, document interface{}) (*spec.Schema, error) {
-	data, _, err := schema.Ref.GetPointer().Get(document)
-	if err != nil {
-		return nil, err
-	}
-
-	refSchema := data.(spec.Schema)
-	return &refSchema, nil
 }

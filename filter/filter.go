@@ -1,7 +1,6 @@
 package filter
 
 import (
-	"log"
 	"reflect"
 
 	"github.com/go-openapi/spec"
@@ -108,48 +107,20 @@ func (f *filter) schema(s *spec.Schema) {
 		return
 	}
 
-	if isRef(s) {
-		name := getRefName(s)
-		f.defs[name] = *getRef(s, f.swagger)
-		f.schema(getRef(s, f.swagger))
+	if utils.IsRef(s) {
+		name := utils.GetRefName(s)
+		ref := utils.GetRef(s, f.swagger)
+		f.defs[name] = *ref
+		f.schema(ref)
 	}
 
-	if isArray(s) {
+	if utils.IsArray(s) {
 		f.schema(s.Items.Schema)
 	}
 
-	if isObject(s) {
+	if utils.IsObject(s) {
 		for _, v := range s.Properties {
 			f.schema(&v)
 		}
 	}
-}
-
-func getRefName(s *spec.Schema) string {
-	pr := s.Ref.GetPointer()
-	tokens := pr.DecodedTokens()
-	return tokens[len(tokens)-1]
-}
-
-func getRef(s *spec.Schema, document interface{}) *spec.Schema {
-	data, _, err := s.Ref.GetPointer().Get(document)
-	if err != nil {
-		log.Fatal(err)
-		return nil
-	}
-
-	refSchema := data.(spec.Schema)
-	return &refSchema
-}
-
-func isArray(schema *spec.Schema) bool {
-	return utils.Contains(schema.Type, "array")
-}
-
-func isObject(schema *spec.Schema) bool {
-	return utils.Contains(schema.Type, "object")
-}
-
-func isRef(s *spec.Schema) bool {
-	return s.Ref.HasFragmentOnly
 }
