@@ -86,7 +86,7 @@ func (m *merger) Add(swagger *spec.Swagger, scope string) error {
 	// + scope
 	defs := make(map[string]spec.Schema)
 	for k, v := range swagger.Definitions {
-		v.ID = scope + k
+		// v.ID = scope + k
 		defs[scope+k] = v
 	}
 	swagger.Definitions = defs
